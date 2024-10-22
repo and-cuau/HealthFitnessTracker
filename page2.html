@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JavaScript Frontend, Python Backend</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { padding: 10px 20px; font-size: 16px; }
+        .bar {
+            width: 50px;
+            margin: 5px;
+            display: inline-block;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>MyFinanceSite</h1>
+    <label for="options">Choose an option:</label>
+    <select id="options" name="options">
+        <option value="Housing">Housing</option>
+        <option value="Transportation">Transportation</option>
+        <option value="Food">Food</option>
+        <option value="Clothes">Clothes</option>
+        <option value="Healthcare">Healthcare</option>
+        <option value="Personal Care">Personal Care</option>
+        <option value="Education">Education</option>
+        <option value="Debt Payments">Debt Payments</option>
+        <option value="Savings & Investments">Savings & Investments</option>
+        <option value="Entertainment">Entertainment</option>
+        <option value="Gifts & Donations">Gifts & Donations</option>
+        <option value="Misc.">Misc.</option>
+    </select>, 
+
+    <label for="amount">$</label>
+    <input type="text" id="userInput" placeholder="Amount">
+
+    <input type="text" id="dateInput" placeholder="Date" value="10/20/2024">
+    <button onclick="sendData2(); addRow(document.getElementById('dateInput').value, document.getElementById('options').value, document.getElementById('userInput').value);">Send to Server</button>
+
+    <h3>Response from Server:</h3>
+    <p id="responseData"></p>
+    <p id="responseData2"></p>
+    <h4 id="currentDate"></h4>
+
+
+    <h2>Transactions</h2>
+    <label id="idk">Original Text</label>
+    <br>
+    <br>
+    <table border="1" id="transactions">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    
+
+    <h2>Bar Graph</h2>
+    <div id="barContainer"></div>
+
+
+
+    <script>
+        // Display the current date
+        let now = new Date();
+        document.getElementById("currentDate").textContent = now.toLocaleDateString();
+
+
+          // Define the function to be called on page load
+        function onPageLoad() {
+
+            sendData3()
+            
+            // You can call other functions or perform any tasks here
+        }
+
+        // Attach the function to the window's load event
+        window.onload = onPageLoad;
+
+
+
+
+
+        function sendData2() {
+            const input = document.getElementById('userInput').value;
+            const input2 = document.getElementById('options').value;
+
+            testDate = document.getElementById("dateInput").value;
+            //testDate = "10/01/2024"
+            // Format the data
+            const combined = `${testDate} ${input2.replace(/\s+/g, '').replace("&", "").replace(".", "")} ${input}`;
+
+            // Send data to the server
+            fetch('http://127.0.0.1:5000/api', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: combined }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                //document.getElementById('responseData').innerText = data.week1;
+                document.getElementById('responseData').innerText = data.week1;
+                let amounts = data.week1;
+                addBars(input2, amounts);  // Add the bar after sending data
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function sendData3() {
+            let test = "test successful"
+            // Send data to the server
+            fetch('http://127.0.0.1:5000/test', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: test }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                //document.getElementById('responseData').innerText = data.week1;
+                for (let key in data) {
+                    for (let value of data[key]) {
+                    console.log(key);           // Outputs the keys: name, age, city
+                    console.log(value[1]);     // Outputs the values: Andre, 25, Mason
+                    addRow(key, value[0], value[1])
+                    }
+                }
+
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function addRow(date, option, amount) {
+            const tableBody = document.getElementById("transactions").getElementsByTagName("tbody")[0];
+            const newRow = tableBody.insertRow(0);
+
+            // const amount = document.getElementById('userInput').value;
+
+            //newRow.insertCell(0).textContent = now.toLocaleDateString();
+            newRow.insertCell(0).textContent = date;
+
+            newRow.insertCell(1).textContent = option;
+            newRow.insertCell(2).textContent = amount;
+
+            // Clear the input fields
+            document.getElementById("userInput").value = "";
+        }
+
+        function addBars(type, amounts) {
+            const barContainer = document.getElementById('barContainer');
+            const options = ["Housing", "Transportation", "Food", "Clothes", "Healthcare", "Personal Care", "Education", "Debt Payments", "Savings & Investments", "Entertainment", "Gifts & Donations", "Misc."];
+            amounts.forEach((amount, index) => {
+                if (amount != 0 && index < amounts.length){
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    bar.style.height = amount + 'px';  // Set height based on input amount
+                    bar.style.backgroundColor = '#' + Math.floor(Math.random()*16777215).toString(16); // Random color
+                    bar.textContent = `${options[index]}: ${amount}`; // Set the label text
+                    barContainer.appendChild(bar); // Append the bar to the container
+
+                }
+                document.getElementById("idk").textContent = amounts[amounts.length - 1]
+            });
+            document.getElementById("idk").textContent = amounts[amounts.length - 1]
+
+        }
+
+
+    </script>
+</body>
+</html>
