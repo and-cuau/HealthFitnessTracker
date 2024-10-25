@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
 import atexit
+from datetime import datetime, timedelta
 
 conn = sqlite3.connect('transactions.db')
 cursor = conn.cursor()
@@ -120,12 +121,12 @@ cursor.execute('''CREATE TABLE IF NOT EXISTS weeklyexpenditures (
     Total INTEGER NOT NULL
 )''')
 
-cursor.execute("DELETE FROM weeklyexpenditures")
+# cursor.execute("DELETE FROM weeklyexpenditures")
 
 conn.commit()
 
-# cursor.execute("INSERT INTO weeklyexpenditures (Date, Housing, Transportation, Food, Clothes, Healthcare, PersonalCare, Education, DebtPayments, SavingsInvestments, Entertainment, GiftsDonations, Misc, Total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", ("week1",0,0,0,0,0,0,0,0,0,0,0,0,0))
-new_row_id1 = 1
+
+new_row_id1 = 1 # forget how used this should revisit
 
 conn.commit()
 
@@ -184,6 +185,7 @@ CORS(app)  # Enable CORS for all domains
 @app.route('/api', methods=['POST'])
 def process_data():
     global new_row_id1
+    print(f"this is my rowid b4 processing: {new_row_id1}")
     data = request.json['data']
     print(f"Received: {data}")
     print()
@@ -191,12 +193,15 @@ def process_data():
     words = data.split(" ")
 
     date = words[0]
+    date_object = datetime.strptime(date, "%m/%d/%Y")
     type = words[1]
     amount = int(words[2])
 
     conn = sqlite3.connect('transactions.db')
+    # conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
+    #------------------------------- EXP INSERT---------------------------------------------------------------------------------------------------------------------------------
 
     cursor.execute("SELECT COUNT(*) FROM expenditures WHERE Date = ?", (date,))
     exists = cursor.fetchone()[0] > 0
@@ -215,8 +220,9 @@ def process_data():
 
         cursor.execute(f"UPDATE expenditures SET {type} = {type} + ? WHERE Date = ?", (amount, date))
         cursor.execute(f"UPDATE expenditures SET Total = Total + ? WHERE Date = ?", (amount, date))
-        new_row_id1 += 1
-    
+        cursor.execute("SELECT last_insert_rowid()")
+        new_row_id1 = cursor.fetchone()[0]
+        print(f"The last inserted row ID is: {new_row_id1}")
 
     conn.commit()
 
@@ -233,94 +239,76 @@ def process_data():
     print("new row id" + str(new_row_id1))
     print()
 
-    # dayexps_dict = dict()
-    # dayexps_dict[date] =  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    #-------------------------------WEEKLY EXP INSERT-----------------------------------------------------------------------------------------------------------------------------------------------
 
-    # for option in options:
-    #     cursor.execute(f"""
-    #     SELECT {option}
-    #     FROM expenditures
-    #     WHERE Date = ?
-    #     """, (date,))
-    #     result = cursor.fetchone()
-    #     dayexps_dict[date].append(result[0])
+    cursor.execute(f'SELECT COUNT(*) FROM weeklyexpenditures')
+    row_count = cursor.fetchone()[0]  # Get the first element of the result
 
+    #Check if the table is empty
+    if row_count == 0:
+        print(f'The table weeklyexps is empty.')
+        cursor.execute("INSERT INTO weeklyexpenditures (Date, Housing, Transportation, Food, Clothes, Healthcare, PersonalCare, Education, DebtPayments, SavingsInvestments, Entertainment, GiftsDonations, Misc, Total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", (date,0,0,0,0,0,0,0,0,0,0,0,0,0))
+    else:
+        print(f'The table weeklyexps has {row_count} rows.')
 
+    print("test the date here")
+    print(date)
 
-    # cursor.execute('''INSERT INTO expenditures (
-    #          Date, Housing, Transportation, Food, Clothes, Healthcare, 
-    #          PersonalCare, Education, DebtPayments, SavingsInvestments, 
-    #          Entertainment, GiftsDonations, Misc
-    #      ) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)''', 
-    #      (date,))
+    cursor.execute("SELECT Date FROM weeklyexpenditures ORDER BY ID DESC LIMIT 1")
+    result = cursor.fetchone()
+    lastdate = result[0]
+    lastdateobj = datetime.strptime(lastdate, "%m/%d/%Y")
 
-    #exp_dict = dict()
+    date_difference = date_object - lastdateobj
+    days = date_difference.days
 
-    exp_dict = dict()
-    exp_dict["week1"] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-   
-    if (new_row_id1 % 3 == 0):    # weekly sum calculation
-        exp_dict = dict()
-        exp_dict["week1"] = []
-       # exp_dict[date] = []
-        for option in options:
-            cursor.execute( f"""
-            SELECT SUM({option}) AS total_sum
-            FROM (
-                SELECT {option}
-                FROM expenditures
-                ORDER BY id DESC
-                LIMIT 7
-                ) AS subquery
-            """)
-            result = cursor.fetchone()
-            cursor.execute(f"UPDATE weeklyexpenditures SET {option} = {option} + ? WHERE Date = ?", (result[0], "week1"))
-            cursor.execute(f"UPDATE weeklyexpenditures SET Total = Total + ? WHERE Date = ?", (result[0], "week1"))
-        
-        conn.commit()
-        cursor.execute("SELECT * FROM weeklyexpenditures")
+    cursor.execute("SELECT COUNT(*) From expenditures WHERE Date = ?",(date,))
+    exists = cursor.fetchone()[0] > 0
+    print(days)
 
-        rows = cursor.fetchall()
-        # Print the results
-        print("test this print")
-        for row in rows:
-            print(row)
+    if days > 6:
+        new_date = lastdateobj + timedelta(days=7)
 
-        print()
+        new_date_str = new_date.strftime("%m/%d/%Y")
 
+        cursor.execute('''INSERT INTO weeklyexpenditures (
+             Date, Housing, Transportation, Food, Clothes, Healthcare, 
+             PersonalCare, Education, DebtPayments, SavingsInvestments, 
+             Entertainment, GiftsDonations, Misc, Total
+        ) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)''', 
+        (new_date_str,))
+
+        cursor.execute(f"UPDATE weeklyexpenditures SET {type} = {type} + ? WHERE Date = ?", (amount, new_date_str))
+        cursor.execute(f"UPDATE weeklyexpenditures SET Total = Total + ? WHERE Date = ?", (amount, new_date_str))
+        cursor.execute("SELECT last_insert_rowid()") 
+        print("if passed")
+    else:
+        print("else passed")
+        cursor.execute(f"UPDATE weeklyexpenditures SET {type} = {type} + ? WHERE Date = ?", (amount, lastdate))
+        cursor.execute(f"UPDATE weeklyexpenditures SET Total = Total + ? WHERE Date = ?", (amount, lastdate))
     
-        for option in options:
-            cursor.execute(f"""
-            SELECT {option}
-            FROM weeklyexpenditures
-            WHERE Date = ?
-            """, ("week1",))
-            result = cursor.fetchone()
-            exp_dict["week1"].append(result[0]) # error here result is nonetype
 
-        cursor.execute(f"""
-        SELECT Total
-        FROM weeklyexpenditures
-        WHERE Date = ?
-        """, ("week1",))
-        result = cursor.fetchone()
-        exp_dict["week1"].append(result[0])
+    conn.commit()
 
-        print("test: ")
-        print(exp_dict)
-        print("end test")
+    cursor.execute("SELECT * FROM weeklyexpenditures")
 
-   
+    # Fetch all results
+    rows = cursor.fetchall()
+
+  # Print the results
+    for row in rows:
+      print(row)
+
+    print()
+
     cursor.execute('''INSERT INTO transactions (
              Date, Housing, Transportation, Food, Clothes, Healthcare, 
              PersonalCare, Education, DebtPayments, SavingsInvestments, 
              Entertainment, GiftsDonations, Misc
          ) VALUES (?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)''', 
          (date,))
-    
-    new_row_id = cursor.lastrowid
 
-    cursor.execute(f"UPDATE transactions SET {type} = ? WHERE Id = ?", (amount, new_row_id))
+    cursor.execute(f"UPDATE transactions SET {type} = ? WHERE Date = ?", (amount, date))
 
     conn.commit()
 
@@ -333,27 +321,67 @@ def process_data():
     for row in rows:
       print(row)
 
+    # Removed expenditures dictionary code
+
+    # removed transactions dictionary code
 
     conn.close()
 
-    print("test 2: ")
-    print(str(exp_dict))
-    print("end test")
-    
     my_dict = {'week1': 1}
     my_dict2 = {'week1': [1, 2, 3, 4, 5]}
-
     
-    return jsonify(exp_dict)
-    # return jsonify({'week1': 'kcuf'}) # this works
-    # return jsonify({'reverstr : fuck'})
+    return jsonify({'week1': 'test'})
+    # return jsonify(exp_dict) # this works
+    # return jsonify({'week1': 'test'}) # this works
+    # return jsonify({'reverstr : test'})
+
+
+@app.route('/exp', methods=['POST'])
+def sendExpenditureData():
+
+    conn = sqlite3.connect('transactions.db')
+    conn.row_factory = sqlite3.Row # test this new cursor avoid <sqlite3.Row object at 0x0000022A108C2DD0> error
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT * FROM expenditures")
+    rows = cursor.fetchall()
+    result_dict = [dict(row) for row in rows]
+
+
+    print("Test of sql table to py dict: ")
+    print(result_dict)
+    print("End test of st to pd")
+    print()
+
+    return jsonify(result_dict)
+
+
+@app.route('/wexp', methods=['POST'])
+def sendWeeklyExpenditureData():
+     
+    conn = sqlite3.connect('transactions.db')
+    conn.row_factory = sqlite3.Row # test this new cursor avoid <sqlite3.Row object at 0x0000022A108C2DD0> error
+    cursor = conn.cursor()
+
+    cursor.execute(f"SELECT * FROM weeklyexpenditures")
+    rows = cursor.fetchall()
+    result_dict = [dict(row) for row in rows]
+
+
+    print("Test of sql table to py dict: ")
+    print(result_dict)
+    print("End test of st to pd")
+    print()
+
+    return jsonify(result_dict)
 
 
 
 
-@app.route('/test', methods=['POST'])
+
+
+@app.route('/trans', methods=['POST'])
 def process_data3():
-
     print("test passed")
     trans_dict = dict()
     j = 1
@@ -381,7 +409,7 @@ def process_data3():
     print("test of transdict")
     print(str(trans_dict))
     return jsonify(trans_dict)
-    return jsonify({'week1': 'test'}) # this works
+    #return jsonify({'week1': 'test'}) # this works
    
 
 if __name__ == '__main__':
@@ -396,9 +424,6 @@ if __name__ == '__main__':
 # print(df)
 
 # df.to_sql('table_name', conn, if_exists='replace', index=False)
-
-
-
 
 
 

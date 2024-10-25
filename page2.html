@@ -39,7 +39,8 @@
     <input type="text" id="userInput" placeholder="Amount">
 
     <input type="text" id="dateInput" placeholder="Date" value="10/20/2024">
-    <button onclick="sendData2(); addRow(document.getElementById('dateInput').value, document.getElementById('options').value, document.getElementById('userInput').value);">Send to Server</button>
+    <!-- <button onclick="sendData2(); fetchTransactionData(); addRow(document.getElementById('dateInput').value, document.getElementById('options').value, document.getElementById('userInput').value);">Send to Server</button> -->
+    <button onclick="sendData2(); fetchExpenditureData(); fetchWeeklyExpenditureData(); fetchTransactionData();">Send to Server</button>
 
     <h3>Response from Server:</h3>
     <p id="responseData"></p>
@@ -62,6 +63,58 @@
         <tbody>
         </tbody>
     </table>
+
+    <h2>Daily Expenditures</h2>
+    <br>
+    <br>
+    <table border="1" id="expenditure">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Housing</th>
+                <th>Transportation</th>
+                <th>Food</th>
+                <th>Clothes</th>
+                <th>Healthcare</th>
+                <th>Personal Care</th>
+                <th>Education</th>
+                <th>Debt Payments</th>
+                <th>Savings & Investments</th>
+                <th>Entertainment</th>
+                <th>Gifts & Donations</th>
+                <th>Misc.</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <h2>Weekly Expenditures</h2>
+    <br>
+    <br>
+    <table border="1" id="weeklyexpenditure">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Housing</th>
+                <th>Transportation</th>
+                <th>Food</th>
+                <th>Clothes</th>
+                <th>Healthcare</th>
+                <th>Personal Care</th>
+                <th>Education</th>
+                <th>Debt Payments</th>
+                <th>Savings & Investments</th>
+                <th>Entertainment</th>
+                <th>Gifts & Donations</th>
+                <th>Misc.</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
     
 
     <h2>Bar Graph</h2>
@@ -74,21 +127,14 @@
         let now = new Date();
         document.getElementById("currentDate").textContent = now.toLocaleDateString();
 
-
-          // Define the function to be called on page load
         function onPageLoad() {
-
-            sendData3()
-            
-            // You can call other functions or perform any tasks here
+            fetchTransactionData();
+            fetchExpenditureData();
+            fetchWeeklyExpenditureData();
         }
 
         // Attach the function to the window's load event
         window.onload = onPageLoad;
-
-
-
-
 
         function sendData2() {
             const input = document.getElementById('userInput').value;
@@ -110,19 +156,23 @@
             .then(response => response.json())
             .then(data => {
                 //document.getElementById('responseData').innerText = data.week1;
-                document.getElementById('responseData').innerText = data.week1;
-                let amounts = data.week1;
-                addBars(input2, amounts);  // Add the bar after sending data
+                
+                // SendData2 currently does nothing wth response
+
+                //UNCOMENT THIS vvv
+                //document.getElementById('responseData').innerText = data.week1;
+                //let amounts = data.week1;
+                //addBars(input2, amounts);  // Add the bar after sending data
             })
             .catch((error) => {
                 console.error('Error:', error);
             });
         }
 
-        function sendData3() {
+        function fetchTransactionData() {
             let test = "test successful"
             // Send data to the server
-            fetch('http://127.0.0.1:5000/test', {
+            fetch('http://127.0.0.1:5000/trans', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -133,10 +183,8 @@
             .then(data => {
                 //document.getElementById('responseData').innerText = data.week1;
                 for (let key in data) {
-                    for (let value of data[key]) {
-                    console.log(key);           // Outputs the keys: name, age, city
-                    console.log(value[1]);     // Outputs the values: Andre, 25, Mason
-                    addRow(key, value[0], value[1])
+                    for (let value of data[key]) {                     
+                        addRow(key, value[0], value[1])
                     }
                 }
 
@@ -146,6 +194,49 @@
             });
         }
 
+        function fetchExpenditureData() {
+            let test = "test successful"
+            // Send data to the server
+            fetch('http://127.0.0.1:5000/exp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: test }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('responseData').innerText = data[0].Housing
+                addRow2(data, "expenditure")
+                console.log(data)
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+        function fetchWeeklyExpenditureData() {
+            let test = "test successful"
+            // Send data to the server
+            fetch('http://127.0.0.1:5000/wexp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ data: test }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                addRow2(data, "weeklyexpenditure")
+                console.log(data)
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+
+
+
         function addRow(date, option, amount) {
             const tableBody = document.getElementById("transactions").getElementsByTagName("tbody")[0];
             const newRow = tableBody.insertRow(0);
@@ -154,10 +245,43 @@
 
             //newRow.insertCell(0).textContent = now.toLocaleDateString();
             newRow.insertCell(0).textContent = date;
-
             newRow.insertCell(1).textContent = option;
             newRow.insertCell(2).textContent = amount;
 
+            // Clear the input fields
+            document.getElementById("userInput").value = "";
+        }
+
+        function addRow2(data, table) {
+            console.log(data)
+            const tableBody = document.getElementById(table).getElementsByTagName("tbody")[0];
+
+            for (let datum of data){
+                let k = 0
+                const newRow = tableBody.insertRow(0);
+                newRow.insertCell(0).textContent = datum.Date;  
+                newRow.insertCell(1).textContent = datum.Housing;
+                newRow.insertCell(2).textContent = datum.Transportation;
+                newRow.insertCell(3).textContent = datum.Food;
+                newRow.insertCell(4).textContent = datum.Clothes;
+                newRow.insertCell(5).textContent = datum.Healthcare;
+                newRow.insertCell(6).textContent = datum.PersonalCare;
+                newRow.insertCell(7).textContent = datum.Education;
+                newRow.insertCell(8).textContent = datum.DebtPayments;
+                newRow.insertCell(9).textContent = datum.SavingsInvestments;
+                newRow.insertCell(10).textContent = datum.Entertainment;
+                newRow.insertCell(11).textContent = datum.GiftsDonations;
+                newRow.insertCell(12).textContent = datum.Misc;
+                newRow.insertCell(13).textContent = datum.Total;
+                
+
+            }
+
+            // Object.keys(datum).forEach(key => {
+            //         console.log(key)
+            //         newRow.insertCell(k).textContent = key;
+            //         k = k + 1;
+            //     });
             // Clear the input fields
             document.getElementById("userInput").value = "";
         }
@@ -166,7 +290,7 @@
             const barContainer = document.getElementById('barContainer');
             const options = ["Housing", "Transportation", "Food", "Clothes", "Healthcare", "Personal Care", "Education", "Debt Payments", "Savings & Investments", "Entertainment", "Gifts & Donations", "Misc."];
             amounts.forEach((amount, index) => {
-                if (amount != 0 && index < amounts.length){
+                if (amount != 0 && index < amounts.length - 1){
                     const bar = document.createElement('div');
                     bar.className = 'bar';
                     bar.style.height = amount + 'px';  // Set height based on input amount
